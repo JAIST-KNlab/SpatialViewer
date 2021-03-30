@@ -1,0 +1,177 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('spacial-webconf:server');
+//var http = require('http');
+var https = require('https');
+var fs = require('fs');
+var ws = require("ws");
+
+var options = {
+    key: fs.readFileSync('./ssl/key.pem'),
+    cert: fs.readFileSync('./ssl/cert.pem'),
+};
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3001');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+//var server = http.createServer(app);
+var httpsServer = https.createServer(options, app);
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+httpsServer.listen(port);
+httpsServer.on('error', onError);
+httpsServer.on('listening', onListening);
+
+//socket.io
+const io = require("socket.io")(httpsServer);
+let peer_info = [];
+
+io.on("connection", function(socket){
+  console.log("ioconnect");
+
+  socket.on("peerToServerJoin", function (data) {
+    console.log(data);
+    peer_info.push({id:data.id, username:data.username, fusenn_info:null});
+    io.emit("serverToPeerFusennData",{data:peer_info});
+  });
+
+  socket.on("requestUsername", function(data){
+    console.log(data);
+
+    //send user name based on id
+    //if peerToSeverJoin is no finished, wait and loop
+    let ru = setInterval(function () {
+      let username = null;
+      for (let pi = 0; pi < peer_info.length; pi++) {
+        if (peer_info[pi].id == data.id) {
+          username = peer_info[pi].username;
+        }
+      }
+      if (username != null) {
+        io.to(socket.id).emit("serverToPeerUsername", { id: data.id, username: username });
+        clearInterval(ru);
+      }
+    }, 1000);
+  });
+
+  socket.on("peerToServerUpdateFusennInfo", function (data) {
+    console.log(data);
+    for(let pi = 0; pi < peer_info.length; pi++){
+      if(peer_info[pi].id == data.id){
+        peer_info[pi].fusenn_info = data.fusenn_info;
+      }
+    }
+    io.emit("serverToPeerFusennData",{data:peer_info});
+  });
+
+  socket.on("peerToServerDeleteFusennId", function (data) {
+    console.log(data);
+    
+    //delete leave peer id
+    let new_peer_info = [];
+    for(let pi = 0; pi < peer_info.length; pi++){
+      if(peer_info[pi].id != data.id){
+        new_peer_info.push(peer_info[pi]);
+      }
+    }
+    peer_info = new_peer_info;
+    console.log(peer_info);
+  });
+
+});
+
+//websocket
+var WebSocketServer = ws.Server;
+var wss = new WebSocketServer({ port: 5000 });
+
+  wss.on("connection", function connection(ws) {
+    console.log("processing_connection");
+
+    ws.send("processing_connect");
+
+    ws.on("message", function incoming(message) {
+      console.log("received:" + message);
+      //io.emit("serverToMaster",{data:message});
+      io.emit("volumeCommand",{data:message});
+    });
+
+    ws.on("close", function () {
+      console.log("processing_close");
+    });
+  });
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  var bind = typeof port === 'string'
+    ? 'Pipe ' + port
+    : 'Port ' + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = httpsServer.address();
+  var bind = typeof addr === 'string'
+    ? 'pipe ' + addr
+    : 'port ' + addr.port;
+  debug('Listening on ' + bind);
+}

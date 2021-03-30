@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+
+<head lang="ja">
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+
+  <title>conf_v2</title>
+
+  <!-- CSS読込み-->
+  <link rel="stylesheet" href="/stylesheets/v2.css">
+
+  <!-- SocketIO, JQuery読み込み なお自作JS ./public/javascripts/v2.jsはここではなく，ファイル末尾で読み込む-->
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="text/javascript">
+    const user_type = <%- JSON.stringify(user_type) %>;
+  </script>
+  <link href="/lib/jquery-ui-1.12.1/jquery-ui.css" rel="stylesheet">
+  <script src="/lib/jquery-ui-1.12.1/external/jquery/jquery.js"></script>
+  <script src="/lib/jquery-ui-1.12.1/jquery-ui.js"></script>
+
+</head>
+
+<body>
+
+  <% if(user_type =="debug" ){ %>
+    <div class="user_info">this is debug mode</div>
+  <% } %>
+
+      <!-- 自分のビデオ LOGINしたら位置を変える -->
+      <div id="js-local-component">
+        <video id="js-local-video" autoplay muted="true"></video>
+        <div style="text-align: center;">you</div>
+      </div>
+
+      <!-- LOGINページ LOGINしたらinvisibleにする -->
+      <div id="login">
+        <div>SpatialViewer (Lite) v0.1 </div>
+        <input type="text" id="js-user-name" placeholder="enter name">
+        <button id="js-join-trigger">Join</button>
+      </div>
+
+      <!-- APPページ LOGINしたらvisibleにする-->
+      <div id="app">
+        <!-- 他の人のビデオを埋め込んで操作する領域 -->
+        <div id="js-videos-container"></div>
+        <!-- ログアウトボタン -->
+        <div><button id="js-leave-trigger">Leave</button></div>
+
+          <!-- debug modeの場合はデバッグ用情報を表示 -->
+          <% if(user_type=="debug" ){ %>
+            <div>
+          <!-- debug modeでない場合は表示しない -->
+          <% }else{ %>
+            <div style="visibility: hidden;">
+          <% } %>
+                  <hr />
+                  <!-- 通信idと入退室ログの表示 -->
+                  <p>Your id: <span id="js-local-id">...</span></p>
+                  <div>
+                    <pre id="js-messages"></pre>
+                  </div>
+              </div>
+        </div>
+
+        <script type="text/javascript" src="https://cdn.webrtc.ecl.ntt.com/skyway-latest.js"></script>
+        <script type="text/javascript" src="/skyway/key.js"></script>
+        <script type="text/javascript" src="/javascripts/v2.js"></script>
+
+</body>
+
+</html>
